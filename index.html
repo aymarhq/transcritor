@@ -47,6 +47,11 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;ma
 .mode small{color:var(--mut);font-size:13px}
 .mode:has(input:checked){border-color:var(--blue);background:rgba(47,107,255,.1)}
 .note{font-size:13px;color:var(--mut);margin:14px 0 0}
+.sub{font-size:12px;color:var(--mut);margin:6px 2px 0}
+.senha{margin:2px 0 4px;display:none}
+.senha.on{display:block}
+.senha input{width:100%;background:var(--p2);border:1px solid var(--ln);border-radius:10px;padding:9px 12px;min-height:40px;font-size:16px}
+.engine.warn{border-color:rgba(255,90,106,.5)}
 .engine{margin-top:14px;padding:12px;border-radius:12px;background:var(--p2);border:1px solid var(--ln);font-size:13px;color:var(--mut);display:none}
 .engine.on{display:block}
 .engine b{color:var(--ink);font-weight:500}
@@ -125,13 +130,16 @@ footer{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px) 30px;color:var(--m
       <div class="field">
         <label>Modo de transcrição</label>
         <div class="modes" id="modes">
+          <label class="mode"><input type="radio" name="modo" value="nuvem"><div><b>Nuvem · instantâneo</b><small>Sem download. Whisper large-v3 turbo na Groq.</small></div></label>
+          <div class="senha" id="senhaBox"><label for="senha" class="sub" style="display:block;margin:0 2px 6px">Senha do site</label><input type="password" id="senha" autocomplete="current-password" placeholder="Digite a senha"></div>
+          <div class="sub" style="margin-top:10px">No seu computador (baixa o modelo uma vez)</div>
           <label class="mode"><input type="radio" name="modo" value="rapido"><div><b>Rápido</b><small>Whisper base · ~80 a 170 MB</small></div></label>
           <label class="mode"><input type="radio" name="modo" value="equilibrado"><div><b>Equilibrado</b><small>Whisper small · ~250 a 410 MB</small></div></label>
           <label class="mode"><input type="radio" name="modo" value="precisao"><div><b>Máxima precisão</b><small id="precNote">Whisper large-v3 turbo · ~1,6 GB</small></div></label>
         </div>
       </div>
       <div class="engine" id="engine"></div>
-      <p class="note">Tudo roda no seu navegador: os arquivos não são enviados para nenhum servidor. O modelo é baixado só na primeira vez e fica salvo. Mantenha esta aba aberta enquanto transcreve.</p>
+      <p class="note" id="nota"></p>
     </aside>
 
     <main>
@@ -147,7 +155,7 @@ footer{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px) 30px;color:var(--m
     </main>
   </div>
 </div>
-<footer>Feito pela Aymar Labs · transcrição com Whisper (OpenAI) rodando localmente no navegador.</footer>
+<footer>Feito pela Aymar Labs · transcrição com Whisper (OpenAI), na nuvem pela Groq ou no seu navegador.</footer>
 
 <div class="shade" id="shade"></div>
 <section class="reader" id="reader" aria-label="Transcrição">
@@ -193,38 +201,114 @@ const persist = j => { const { file, ...rest } = j; DB.put(rest); };
 
 const prefs = (() => { try { return JSON.parse(localStorage.getItem('tr-pref')||'{}'); } catch { return {}; } })();
 const savePrefs = () => { try { localStorage.setItem('tr-pref', JSON.stringify({ idioma:$('#idioma').value, modo:modo() })); } catch {} };
-const modo = () => TESTE ? 'teste' : document.querySelector('input[name=modo]:checked')?.value || 'equilibrado';
+const modo = () => { const v = document.querySelector('input[name=modo]:checked')?.value || 'nuvem'; return TESTE && v !== 'nuvem' ? 'teste' : v; };
 if (prefs.idioma) $('#idioma').value = prefs.idioma;
 $('#idioma').onchange = savePrefs; $('#modes').onchange = savePrefs;
 
+let GPU = false, NUVEM_OK = null;
+const senhaEl = $('#senha');
+try { senhaEl.value = localStorage.getItem('tr-senha') || ''; } catch {}
+senhaEl.onchange = () => { try { localStorage.setItem('tr-senha', senhaEl.value); } catch {} };
+function info(){
+  const nuvem = modo() === 'nuvem', eng = $('#engine');
+  $('#senhaBox').classList.toggle('on', nuvem);
+  eng.classList.add('on'); eng.classList.toggle('warn', nuvem && NUVEM_OK === false);
+  if (nuvem) {
+    eng.innerHTML = NUVEM_OK === false ? '<b>Nuvem ainda não configurada.</b> Falta colocar a chave da Groq e a senha na Vercel.' : '<b>Nuvem.</b> Plano grátis da Groq: até cerca de 2 horas de áudio por hora.';
+    $('#nota').textContent = 'Os áudios são enviados para a Groq só para transcrever. O arquivo é cortado em pedaços nos silêncios e enviado aos poucos. Mantenha esta aba aberta enquanto transcreve.';
+  } else {
+    eng.innerHTML = GPU ? '<b>Aceleração ligada.</b> Este navegador usa a placa de vídeo (WebGPU).' : '<b>Modo compatível.</b> Sem WebGPU aqui: funciona, mas mais devagar. Use o Chrome atualizado para mais velocidade.';
+    $('#nota').textContent = 'Tudo roda no seu navegador: os arquivos não saem do computador. O modelo é baixado só na primeira vez e fica salvo. Mantenha esta aba aberta enquanto transcreve.';
+  }
+}
+$('#modes').addEventListener('change', info);
 (async () => {
-  let gpu = false;
-  try { const a = navigator.gpu && await navigator.gpu.requestAdapter(); gpu = !!a && a.features.has('shader-f16'); } catch {}
-  const def = prefs.modo || (gpu ? 'precisao' : 'equilibrado');
-  const r = document.querySelector(`input[name=modo][value=${def}]`); if (r) r.checked = true;
-  if (!gpu) $('#precNote').textContent = 'Whisper large-v3 turbo · lento sem placa de vídeo';
-  const eng = $('#engine'); eng.classList.add('on');
-  eng.innerHTML = gpu ? '<b>Aceleração ligada.</b> Este navegador usa a placa de vídeo (WebGPU).' : '<b>Modo compatível.</b> Sem WebGPU aqui: funciona, mas mais devagar. Use o Chrome atualizado para mais velocidade.';
+  const r = document.querySelector(`input[name=modo][value=${prefs.modo || 'nuvem'}]`); if (r) r.checked = true;
+  info();
+  try { const a = navigator.gpu && await navigator.gpu.requestAdapter(); GPU = !!a && a.features.has('shader-f16'); } catch {}
+  if (!GPU) $('#precNote').textContent = 'Whisper large-v3 turbo · lento sem placa de vídeo';
+  try { NUVEM_OK = (await (await fetch('/api/transcrever')).json()).configurado; } catch { NUVEM_OK = false; }
+  info();
 })();
 
 /* ---------- motor ---------- */
-const worker = new Worker('./worker.js', { type: 'module' });
-let atual = null, carregando = null;
-worker.onmessage = e => {
+let worker = null, atual = null, carregando = null;
+function getWorker(){
+  if (worker) return worker;
+  worker = new Worker('./worker.js', { type: 'module' });
+  worker.onmessage = onWorker;
+  worker.onerror = e => { toast('Erro no motor de transcrição'); console.error(e); };
+  return worker;
+}
+function concluir(j, segs, duracao){
+  Object.assign(j, { status:'concluído', pct:100, segs, duracao, parcial:'', tempo:(Date.now()-j.inicio)/1000, palavras: segs.reduce((n,s)=>n+s.text.split(/\s+/).filter(Boolean).length,0) });
+  delete j.file; persist(j); atual = null; proximo(); if (aberto === j.id) abrir(j.id, true); render();
+}
+function falhar(j, msg){ Object.assign(j, { status:'erro', erro:msg }); delete j.file; persist(j); atual = null; proximo(); render(); }
+function onWorker(e){
   const m = e.data;
   if (m.type === 'loading') carregando = { pct: 0, device: m.device };
   if (m.type === 'download' && carregando) { carregando.pct = m.pct; carregando.total = m.total; carregando.loaded = m.loaded; }
   if (m.type === 'ready') carregando = null;
   const j = jobs.find(x => x.id === m.id);
   if (m.type === 'progress' && j) { j.status = 'processando'; j.pct = m.pct; j.parcial = m.parcial; }
-  if (m.type === 'done' && j) {
-    Object.assign(j, { status:'concluído', pct:100, segs:m.segs, duracao:m.duracao, parcial:'', tempo:(Date.now()-j.inicio)/1000, palavras: m.segs.reduce((n,s)=>n+s.text.split(/\s+/).filter(Boolean).length,0) });
-    delete j.file; persist(j); atual = null; proximo(); if (aberto === j.id) abrir(j.id, true);
-  }
-  if (m.type === 'error' && j) { Object.assign(j, { status:'erro', erro:m.message }); persist(j); atual = null; proximo(); }
+  if (m.type === 'done' && j) return concluir(j, m.segs, m.duracao);
+  if (m.type === 'error' && j) return falhar(j, m.message);
   render();
-};
-worker.onerror = e => { toast('Erro no motor de transcrição'); console.error(e); };
+}
+
+/* ---------- nuvem (Groq via /api/transcrever) ---------- */
+const SR = 16000, PEDACO = SR * 115;
+function cortes(a){
+  const out = []; let ini = 0;
+  while (ini < a.length) {
+    if (a.length - ini <= PEDACO) { out.push([ini, a.length]); break; }
+    let melhor = ini + PEDACO, menor = Infinity;
+    for (let f = ini + PEDACO - SR * 12; f + 1600 <= ini + PEDACO; f += 800) {
+      let e = 0; for (let i = f; i < f + 1600; i++) e += a[i] * a[i];
+      if (e < menor) { menor = e; melhor = f + 800; }
+    }
+    out.push([ini, melhor]); ini = melhor;
+  }
+  return out;
+}
+function wav(a){
+  const b = new ArrayBuffer(44 + a.length * 2), v = new DataView(b);
+  const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4, 36 + a.length * 2, true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,SR,true); v.setUint32(28,SR*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,'data'); v.setUint32(40, a.length * 2, true);
+  for (let i = 0; i < a.length; i++) { const x = Math.max(-1, Math.min(1, a[i])); v.setInt16(44 + i * 2, x < 0 ? x * 0x8000 : x * 0x7fff, true); }
+  return new Blob([b], { type: 'audio/wav' });
+}
+const espera = ms => new Promise(r => setTimeout(r, ms));
+let ultimoEnvio = 0;
+async function nuvem(j, audio){
+  const partes = cortes(audio), segs = [];
+  for (let k = 0; k < partes.length; k++) {
+    const [a, b] = partes[k], corpo = wav(audio.subarray(a, b));
+    for (let tent = 0; ; tent++) {
+      const falta = ultimoEnvio + 3200 - Date.now(); if (falta > 0) await espera(falta);
+      ultimoEnvio = Date.now();
+      let r, d = {};
+      try {
+        r = await fetch('/api/transcrever?idioma=' + encodeURIComponent(j.idioma), { method:'POST', headers:{ 'x-senha': senhaEl.value, 'content-type':'audio/wav' }, body: corpo });
+        d = await r.json().catch(() => ({}));
+      } catch { if (tent < 3) { await espera(3000); continue; } throw new Error('Sem conexão com o servidor.'); }
+      if (r.status === 429 && tent < 8) {
+        const s = Math.min(120, Math.max(5, d.retryAfter || 20));
+        j.parcial = `Limite grátis da Groq: aguardando ${s}s…`; render(); await espera(s * 1000); continue;
+      }
+      if (r.status === 401) { $('#senhaBox').classList.add('on'); senhaEl.focus(); throw new Error('Senha incorreta. Digite a senha do site e envie de novo.'); }
+      if (!r.ok) throw new Error(d.erro || `Erro ${r.status} no servidor.`);
+      const off = a / SR;
+      (d.segments?.length ? d.segments : (d.text ? [{ start:0, end:(b-a)/SR, text:d.text }] : []))
+        .forEach(s => segs.push({ start: +(s.start + off).toFixed(2), end: +(s.end + off).toFixed(2), text: s.text }));
+      j.pct = Math.round((k + 1) / partes.length * 100); j.parcial = segs.at(-1)?.text?.slice(-140) || ''; render();
+      break;
+    }
+  }
+  return segs;
+}
 
 async function decodificar(file){
   const buf = await file.arrayBuffer();
@@ -247,9 +331,13 @@ async function proximo(){
   try {
     const audio = await decodificar(j.file);
     j.status = 'processando'; j.pct = 0; render();
-    worker.postMessage({ type:'run', id:j.id, audio, idioma:j.idioma, modo:j.modo }, [audio.buffer]);
+    if (j.modo === 'nuvem') {
+      nuvem(j, audio).then(segs => concluir(j, segs, audio.length / SR)).catch(e => falhar(j, e.message));
+    } else {
+      getWorker().postMessage({ type:'run', id:j.id, audio, idioma:j.idioma, modo:j.modo }, [audio.buffer]);
+    }
   } catch (err) {
-    Object.assign(j, { status:'erro', erro:'Não consegui ler este arquivo. Tente converter para MP3 ou MP4.' }); delete j.file; persist(j); atual = null; proximo();
+    falhar(j, 'Não consegui ler este arquivo. Tente converter para MP3 ou MP4.');
   }
 }
 
