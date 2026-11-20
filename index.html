@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Transcritor · Aymar Labs</title>
+<meta name="description" content="Transcreva vários áudios e vídeos de uma vez, direto no navegador.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2307080b'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%232f6bff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07080b;--p1:#0e1015;--p2:#151821;--ln:#232733;--ink:#eef1f7;--mut:#8b92a3;--blue:#2f6bff;--blue2:#5b8cff;--ok:#2fd27a;--err:#ff5a6a;--r:16px;color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;font-weight:600;margin:0;letter-spacing:-.01em}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;border-radius:10px;padding:10px 14px;background:var(--p2);border:1px solid var(--ln);min-height:40px;transition:.15s}
+button:hover{border-color:#3a4050}
+button:focus-visible,select:focus-visible,input:focus-visible,.drop:focus-visible{outline:2px solid var(--blue2);outline-offset:2px}
+button.pri{background:var(--blue);border-color:var(--blue);font-weight:600}
+button.pri:hover{background:#3d77ff}
+button.ghost{background:transparent;border-color:transparent;color:var(--mut)}
+button.ghost:hover{color:var(--ink);background:var(--p2)}
+button:disabled{opacity:.4;cursor:default}
+select,input[type=search]{background:var(--p2);border:1px solid var(--ln);border-radius:10px;padding:9px 12px;min-height:40px;font-size:16px}
+.wrap{max-width:1240px;margin:0 auto;padding:28px max(4vw,16px) 40px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--blue);box-shadow:0 0 18px var(--blue)}
+.brand h1{font-size:24px}
+.brand span{color:var(--mut);font-size:14px}
+.badge{font-size:13px;color:var(--mut);background:var(--p1);border:1px solid var(--ln);padding:6px 12px;border-radius:99px}
+.grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
+.card{background:var(--p1);border:1px solid var(--ln);border-radius:var(--r);padding:20px}
+.drop{border:1.5px dashed #2f3546;border-radius:14px;padding:30px 18px;text-align:center;cursor:pointer;transition:.2s;background:rgba(47,107,255,.03)}
+.drop:hover,.drop.on{border-color:var(--blue);background:rgba(47,107,255,.09)}
+.drop svg{width:46px;height:46px;color:var(--blue2);margin-bottom:10px}
+.drop b{display:block;font-size:16px;margin-bottom:4px}
+.drop small{color:var(--mut)}
+.field{margin-top:16px}
+.field>label{display:block;font-size:13px;color:var(--mut);margin-bottom:6px}
+.field select{width:100%}
+.modes{display:grid;gap:8px}
+.mode{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border:1px solid var(--ln);border-radius:12px;cursor:pointer;background:var(--p2)}
+.mode input{accent-color:var(--blue);margin-top:4px}
+.mode b{display:block;font-weight:600;font-size:14px}
+.mode small{color:var(--mut);font-size:13px}
+.mode:has(input:checked){border-color:var(--blue);background:rgba(47,107,255,.1)}
+.note{font-size:13px;color:var(--mut);margin:14px 0 0}
+.engine{margin-top:14px;padding:12px;border-radius:12px;background:var(--p2);border:1px solid var(--ln);font-size:13px;color:var(--mut);display:none}
+.engine.on{display:block}
+.engine b{color:var(--ink);font-weight:500}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.bar h2{font-size:20px;margin-right:auto}
+.list{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:24px 40px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--p2);border:1px solid var(--ln);border-radius:14px;padding:12px 14px;cursor:pointer;transition:.15s}
+.row:hover{border-color:#353b4b}
+.row.sel{border-color:var(--blue)}
+.row input{accent-color:var(--blue);width:17px;height:17px;cursor:pointer}
+.ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:#1c2130;color:var(--blue2)}
+.ico svg{width:20px;height:20px}
+.nm{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog{height:4px;background:#232837;border-radius:4px;margin-top:7px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--blue);border-radius:4px;transition:width .4s}
+.st{font-size:13px;padding:5px 10px;border-radius:99px;white-space:nowrap;background:#1c2130;color:var(--mut)}
+.st.ok{color:var(--ok);background:rgba(47,210,122,.1)}
+.st.err{color:var(--err);background:rgba(255,90,106,.1)}
+.st.run{color:var(--blue2);background:rgba(47,107,255,.12)}
+.empty{text-align:center;color:var(--mut);padding:50px 20px;border:1px dashed var(--ln);border-radius:14px}
+.shade{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:.2s;z-index:5}
+.shade.on{opacity:1;pointer-events:auto}
+.reader{position:fixed;top:0;right:0;bottom:0;width:min(760px,100%);background:var(--p1);border-left:1px solid var(--ln);transform:translateX(100%);transition:transform .25s ease;z-index:6;display:flex;flex-direction:column}
+.reader.on{transform:none}
+.rh{padding:20px 22px 14px;border-bottom:1px solid var(--ln)}
+.rh .top{display:flex;gap:12px;align-items:flex-start}
+.rh h3{font-size:20px;margin-right:auto;overflow-wrap:anywhere}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.tools input[type=search]{flex:1 1 180px}
+.sw{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--mut);cursor:pointer;user-select:none}
+.sw input{accent-color:var(--blue)}
+.rb{flex:1;overflow:auto;padding:18px 22px 40px}
+.seg{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;padding:6px 0}
+.seg time{font-size:13px;color:var(--blue2);font-variant-numeric:tabular-nums;padding-top:2px;white-space:nowrap}
+.rb p{margin:0 0 14px;line-height:1.7;font-size:16px}
+mark{background:rgba(47,107,255,.35);color:inherit;border-radius:3px}
+.dl{display:flex;gap:8px;flex-wrap:wrap;padding:14px 22px;border-top:1px solid var(--ln)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--p2);border:1px solid var(--ln);padding:10px 16px;border-radius:12px;opacity:0;transition:.2s;z-index:9;pointer-events:none}
+.toast.on{opacity:1;transform:translateX(-50%)}
+footer{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px) 30px;color:var(--mut);font-size:13px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+@media(max-width:600px){.row{grid-template-columns:22px minmax(0,1fr) auto}.ico{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="dot"></div><h1>Transcritor</h1><span>Aymar Labs</span></div>
+    <div class="badge" id="badge">Pronto para receber arquivos</div>
+  </header>
+
+  <div class="grid">
+    <aside class="card">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Escolher arquivos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        <b>Arraste vários arquivos aqui</b>
+        <small>ou clique para escolher · áudio e vídeo (mp3, m4a, wav, mp4, mov…)</small>
+      </div>
+      <input type="file" id="file" multiple accept="audio/*,video/*,.mp3,.m4a,.wav,.ogg,.opus,.flac,.aac,.mp4,.mov,.webm,.m4v" hidden>
+
+      <div class="field">
+        <label for="idioma">Idioma do áudio</label>
+        <select id="idioma">
+          <option value="pt">Português</option>
+          <option value="auto">Detectar automaticamente</option>
+          <option value="es">Espanhol</option>
+          <option value="en">Inglês</option>
+          <option value="fr">Francês</option>
+          <option value="it">Italiano</option>
+          <option value="de">Alemão</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Modo de transcrição</label>
+        <div class="modes" id="modes">
+          <label class="mode"><input type="radio" name="modo" value="rapido"><div><b>Rápido</b><small>Whisper base · ~80 a 170 MB</small></div></label>
+          <label class="mode"><input type="radio" name="modo" value="equilibrado"><div><b>Equilibrado</b><small>Whisper small · ~250 a 410 MB</small></div></label>
+          <label class="mode"><input type="radio" name="modo" value="precisao"><div><b>Máxima precisão</b><small id="precNote">Whisper large-v3 turbo · ~1,6 GB</small></div></label>
+        </div>
+      </div>
+      <div class="engine" id="engine"></div>
+      <p class="note">Tudo roda no seu navegador: os arquivos não são enviados para nenhum servidor. O modelo é baixado só na primeira vez e fica salvo. Mantenha esta aba aberta enquanto transcreve.</p>
+    </aside>
+
+    <main>
+      <div class="bar">
+        <h2>Arquivos</h2>
+        <label class="sw"><input type="checkbox" id="all"> Selecionar prontos</label>
+        <select id="zipfmt" aria-label="Formato do download em lote">
+          <option value="txt">TXT</option><option value="docx">DOCX</option><option value="srt">SRT</option><option value="vtt">VTT</option>
+        </select>
+        <button class="pri" id="zip" disabled>Baixar selecionados</button>
+      </div>
+      <div class="list" id="list"></div>
+    </main>
+  </div>
+</div>
+<footer>Feito pela Aymar Labs · transcrição com Whisper (OpenAI) rodando localmente no navegador.</footer>
+
+<div class="shade" id="shade"></div>
+<section class="reader" id="reader" aria-label="Transcrição">
+  <div class="rh">
+    <div class="top"><h3 id="rt"></h3><button class="ghost" id="close" aria-label="Fechar">✕</button></div>
+    <div class="meta" id="rm"></div>
+    <div class="tools">
+      <input type="search" id="q" placeholder="Buscar na transcrição">
+      <label class="sw"><input type="checkbox" id="tempo"> Mostrar tempos</label>
+      <button id="copy">Copiar texto</button>
+    </div>
+  </div>
+  <div class="rb" id="rb"></div>
+  <div class="dl" id="dl"></div>
+</section>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+{
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtT = s => { s = Math.floor(s||0); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h? h+':'+String(m).padStart(2,'0') : m)+':'+String(x).padStart(2,'0'); };
+const fmtB = b => b>1e9 ? (b/1e9).toFixed(1).replace('.',',')+' GB' : b>1e6 ? Math.round(b/1e6)+' MB' : Math.round(b/1e3)+' KB';
+const VID = /\.(mp4|mov|mkv|webm|avi|m4v)$/i;
+const icA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>';
+const icV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="13" height="14" rx="2.5"/><path d="m16 10 5-3v10l-5-3z"/></svg>';
+const TESTE = new URLSearchParams(location.search).has('teste');
+const toast = t => { const el=$('#toast'); el.textContent=t; el.classList.add('on'); clearTimeout(toast.h); toast.h=setTimeout(()=>el.classList.remove('on'),2400); };
+
+/* ---------- armazenamento (IndexedDB) ---------- */
+const DB = (() => {
+  let dbp;
+  const open = () => dbp ||= new Promise((res, rej) => { const r = indexedDB.open('transcritor-aymar', 1); r.onupgradeneeded = () => r.result.createObjectStore('jobs', {keyPath:'id'}); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('jobs', mode); const s = t.objectStore('jobs'); const out = fn(s); t.oncomplete = () => res(out?.result); t.onerror = () => rej(t.error); }); };
+  return { all: () => tx('readonly', s => s.getAll()).catch(() => []), put: j => tx('readwrite', s => s.put(j)).catch(() => {}), del: id => tx('readwrite', s => s.delete(id)).catch(() => {}) };
+})();
+
+/* ---------- estado ---------- */
+let jobs = [];            // {id,nome,tamanho,status,pct,parcial,segs,duracao,modo,idioma,criado,tempo,erro, file?}
+let sel = new Set(), aberto = null;
+const persist = j => { const { file, ...rest } = j; DB.put(rest); };
+
+const prefs = (() => { try { return JSON.parse(localStorage.getItem('tr-pref')||'{}'); } catch { return {}; } })();
+const savePrefs = () => { try { localStorage.setItem('tr-pref', JSON.stringify({ idioma:$('#idioma').value, modo:modo() })); } catch {} };
+const modo = () => TESTE ? 'teste' : document.querySelector('input[name=modo]:checked')?.value || 'equilibrado';
+if (prefs.idioma) $('#idioma').value = prefs.idioma;
+$('#idioma').onchange = savePrefs; $('#modes').onchange = savePrefs;
+
+(async () => {
+  let gpu = false;
+  try { const a = navigator.gpu && await navigator.gpu.requestAdapter(); gpu = !!a && a.features.has('shader-f16'); } catch {}
+  const def = prefs.modo || (gpu ? 'precisao' : 'equilibrado');
+  const r = document.querySelector(`input[name=modo][value=${def}]`); if (r) r.checked = true;
+  if (!gpu) $('#precNote').textContent = 'Whisper large-v3 turbo · lento sem placa de vídeo';
+  const eng = $('#engine'); eng.classList.add('on');
+  eng.innerHTML = gpu ? '<b>Aceleração ligada.</b> Este navegador usa a placa de vídeo (WebGPU).' : '<b>Modo compatível.</b> Sem WebGPU aqui: funciona, mas mais devagar. Use o Chrome atualizado para mais velocidade.';
+})();
+
+/* ---------- motor ---------- */
+const worker = new Worker('./worker.js', { type: 'module' });
+let atual = null, carregando = null;
+worker.onmessage = e => {
+  const m = e.data;
+  if (m.type === 'loading') carregando = { pct: 0, device: m.device };
+  if (m.type === 'download' && carregando) { carregando.pct = m.pct; carregando.total = m.total; carregando.loaded = m.loaded; }
+  if (m.type === 'ready') carregando = null;
+  const j = jobs.find(x => x.id === m.id);
+  if (m.type === 'progress' && j) { j.status = 'processando'; j.pct = m.pct; j.parcial = m.parcial; }
+  if (m.type === 'done' && j) {
+    Object.assign(j, { status:'concluído', pct:100, segs:m.segs, duracao:m.duracao, parcial:'', tempo:(Date.now()-j.inicio)/1000, palavras: m.segs.reduce((n,s)=>n+s.text.split(/\s+/).filter(Boolean).length,0) });
+    delete j.file; persist(j); atual = null; proximo(); if (aberto === j.id) abrir(j.id, true);
+  }
+  if (m.type === 'error' && j) { Object.assign(j, { status:'erro', erro:m.message }); persist(j); atual = null; proximo(); }
+  render();
+};
+worker.onerror = e => { toast('Erro no motor de transcrição'); console.error(e); };
+
+async function decodificar(file){
+  const buf = await file.arrayBuffer();
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  const ctx = new Ctx({ sampleRate: 16000 });
+  try {
+    const ab = await ctx.decodeAudioData(buf);
+    if (ab.numberOfChannels === 1) return ab.getChannelData(0).slice();
+    const out = new Float32Array(ab.length);
+    for (let c = 0; c < ab.numberOfChannels; c++) { const d = ab.getChannelData(c); for (let i = 0; i < d.length; i++) out[i] += d[i] / ab.numberOfChannels; }
+    return out;
+  } finally { ctx.close?.(); }
+}
+
+async function proximo(){
+  if (atual) return;
+  const j = jobs.slice().reverse().find(x => x.status === 'na fila');
+  if (!j) { render(); return; }
+  atual = j.id; j.status = 'lendo'; j.inicio = Date.now(); render();
+  try {
+    const audio = await decodificar(j.file);
+    j.status = 'processando'; j.pct = 0; render();
+    worker.postMessage({ type:'run', id:j.id, audio, idioma:j.idioma, modo:j.modo }, [audio.buffer]);
+  } catch (err) {
+    Object.assign(j, { status:'erro', erro:'Não consegui ler este arquivo. Tente converter para MP3 ou MP4.' }); delete j.file; persist(j); atual = null; proximo();
+  }
+}
+
+/* ---------- envio ---------- */
+const drop = $('#drop'), fi = $('#file');
+drop.onclick = () => fi.click();
+drop.onkeydown = e => { if (e.key==='Enter'||e.key===' ') { e.preventDefault(); fi.click(); } };
+fi.onchange = () => { add([...fi.files]); fi.value=''; };
+let dragN = 0;
+document.addEventListener('dragenter', e => { e.preventDefault(); dragN++; drop.classList.add('on'); });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('dragleave', () => { if (--dragN <= 0) { dragN = 0; drop.classList.remove('on'); } });
+document.addEventListener('drop', e => { e.preventDefault(); dragN = 0; drop.classList.remove('on'); add([...e.dataTransfer.files]); });
+
+function add(files){
+  files = files.filter(f => /^(audio|video)\//.test(f.type) || /\.(mp3|m4a|wav|ogg|opus|flac|aac|mp4|mov|mkv|webm|avi|m4v)$/i.test(f.name));
+  if (!files.length) return toast('Nenhum arquivo de áudio ou vídeo');
+  const idioma = $('#idioma').value, md = modo();
+  files.forEach((f, i) => jobs.unshift({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,7), nome:f.name, tamanho:f.size, status:'na fila', pct:0, modo:md, idioma, criado:Date.now()+i, file:f }));
+  toast(files.length === 1 ? '1 arquivo na fila' : files.length+' arquivos na fila');
+  render(); proximo();
+}
+
+/* ---------- lista ---------- */
+const STAT = {'na fila':['Na fila',''],'lendo':['Lendo arquivo','run'],'processando':['Transcrevendo','run'],'concluído':['Pronto','ok'],'erro':['Erro','err'],'interrompido':['Interrompido','err']};
+function render(){
+  const js = jobs.map(j => {
+    let [lbl, cls] = STAT[j.status] || [j.status,''];
+    const ok = j.status==='concluído', run = cls==='run';
+    const meta = [];
+    if (j.id === atual && carregando) {
+      lbl = 'Baixando modelo';
+      meta.push(carregando.total ? `${carregando.pct}% de ${fmtB(carregando.total)} · só na primeira vez` : 'Preparando modelo…');
+    } else {
+      if (j.duracao) meta.push(fmtT(j.duracao));
+      if (ok && j.palavras!=null) meta.push(j.palavras.toLocaleString('pt-BR')+' palavras');
+      if (run && j.parcial) meta.push('“'+j.parcial+'”');
+      if (j.status==='erro'||j.status==='interrompido') meta.push(j.erro||'');
+      if (!meta.length) meta.push(fmtB(j.tamanho||0));
+    }
+    const pct = j.id === atual && carregando ? carregando.pct : (j.pct||0);
+    return `<div class="row${aberto===j.id?' sel':''}" data-id="${j.id}">
+      <input type="checkbox" ${ok?'':'disabled'} ${sel.has(j.id)?'checked':''} aria-label="Selecionar">
+      <div class="ico">${VID.test(j.nome)?icV:icA}</div>
+      <div><div class="nm">${esc(j.nome)}</div><div class="meta">${esc(meta.join(' · '))}</div>${run||j.status==='na fila'?`<div class="prog"><i style="width:${pct}%"></i></div>`:''}</div>
+      <span class="st ${cls}">${lbl}${j.status==='processando'&&!carregando?' '+(j.pct||0)+'%':''}</span></div>`;
+  }).join('');
+  $('#list').innerHTML = js || '<div class="empty">Nenhum arquivo ainda. Arraste quantos quiser para a área ao lado.</div>';
+  const prontos = jobs.filter(j => j.status==='concluído');
+  $('#zip').disabled = !sel.size;
+  $('#zip').textContent = sel.size ? `Baixar ${sel.size} selecionado${sel.size>1?'s':''}` : 'Baixar selecionados';
+  $('#all').checked = prontos.length>0 && prontos.every(j => sel.has(j.id));
+  const fila = jobs.filter(j => j.status==='na fila').length;
+  $('#badge').textContent = atual ? (carregando ? 'Baixando modelo…' : `Transcrevendo · ${fila} na fila`) : `${prontos.length} transcriç${prontos.length===1?'ão pronta':'ões prontas'}`;
+}
+$('#list').onclick = e => {
+  const row = e.target.closest('.row[data-id]'); if (!row) return;
+  const id = row.dataset.id;
+  if (e.target.matches('input')) { e.target.checked ? sel.add(id) : sel.delete(id); render(); return; }
+  abrir(id);
+};
+$('#all').onchange = e => { jobs.filter(j=>j.status==='concluído').forEach(j => e.target.checked ? sel.add(j.id) : sel.delete(j.id)); render(); };
+window.addEventListener('beforeunload', e => { if (atual || jobs.some(j => j.status==='na fila')) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- formatos ---------- */
+function paragrafos(segs){
+  const out=[]; let cur=[], fim=null;
+  segs.forEach(s => { if (cur.length && (s.start-fim>2 || cur.length>=6)) { out.push(cur.join(' ')); cur=[]; } cur.push(s.text); fim=s.end; });
+  if (cur.length) out.push(cur.join(' ')); return out;
+}
+const ts = (s, sep) => { s=Math.max(0,s||0); const ms=Math.round(s*1000); const h=Math.floor(ms/3600000), m=Math.floor(ms%3600000/60000), x=Math.floor(ms%60000/1000), r=ms%1000; return [h,m,x].map(n=>String(n).padStart(2,'0')).join(':')+sep+String(r).padStart(3,'0'); };
+const xml = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function gerar(j, fmt, comTempo){
+  const segs = j.segs || [];
+  if (fmt==='txt') return new Blob([comTempo ? segs.map(s=>`[${fmtT(s.start)}] ${s.text}`).join('\n') : paragrafos(segs).join('\n\n')], {type:'text/plain;charset=utf-8'});
+  if (fmt==='srt') return new Blob([segs.map((s,i)=>`${i+1}\n${ts(s.start,',')} --> ${ts(s.end,',')}\n${s.text}\n`).join('\n')], {type:'text/plain;charset=utf-8'});
+  if (fmt==='vtt') return new Blob(['WEBVTT\n\n'+segs.map(s=>`${ts(s.start,'.')} --> ${ts(s.end,'.')}\n${s.text}\n`).join('\n')], {type:'text/vtt;charset=utf-8'});
+  if (fmt==='docx') {
+    const z = new JSZip();
+    const p = (t, h) => `<w:p>${h?'<w:pPr><w:spacing w:after="240"/></w:pPr>':''}<w:r><w:rPr>${h?'<w:b/><w:sz w:val="32"/>':'<w:sz w:val="22"/>'}</w:rPr><w:t xml:space="preserve">${xml(t)}</w:t></w:r></w:p>`;
+    z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+    z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+    z.file('word/document.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${p(j.nome.replace(/\.[^.]+$/,''),true)}${paragrafos(segs).map(t=>p(t)+'<w:p/>').join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>`);
+    return z.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  }
+}
+const nomeSaida = (j, fmt) => (j.nome.replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|]+/g,'_').trim() || 'transcricao') + '.' + fmt;
+function baixarBlob(blob, nome){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 5000); }
+$('#zip').onclick = async () => {
+  const fmt = $('#zipfmt').value, z = new JSZip(), usados = new Set();
+  for (const j of jobs.filter(j => sel.has(j.id) && j.status==='concluído')) {
+    let n = nomeSaida(j, fmt), k = 2; const base = n.replace(/\.[^.]+$/,'');
+    while (usados.has(n)) n = `${base} (${k++}).${fmt}`;
+    usados.add(n); z.file(n, await gerar(j, fmt));
+  }
+  baixarBlob(await z.generateAsync({type:'blob'}), `transcricoes-${fmt}.zip`);
+};
+
+/* ---------- leitor ---------- */
+function abrir(id, keep){
+  const j = jobs.find(x => x.id === id); if (!j) return;
+  aberto = id; render();
+  $('#rt').textContent = j.nome;
+  const m = [];
+  if (j.duracao) m.push(fmtT(j.duracao));
+  if (j.palavras!=null) m.push(j.palavras.toLocaleString('pt-BR')+' palavras');
+  if (j.tempo) m.push('transcrito em '+fmtT(j.tempo));
+  $('#rm').textContent = m.join(' · ') || (STAT[j.status]?.[0]||j.status);
+  const ok = j.status==='concluído';
+  $('#dl').innerHTML = (ok ? ['txt','docx','srt','vtt'].map(f=>`<button data-f="${f}">${f.toUpperCase()}</button>`).join('') : '')
+    + `<button class="ghost" data-a="apagar" style="margin-left:auto">${j.status==='na fila'?'Remover da fila':'Apagar'}</button>`;
+  if (!keep) $('#q').value = '';
+  texto();
+  $('#reader').classList.add('on'); $('#shade').classList.add('on');
+}
+function texto(){
+  const j = jobs.find(x => x.id === aberto); if (!j) return;
+  const rb = $('#rb'), segs = j.segs || [], q = $('#q').value.trim();
+  if (j.status!=='concluído') { rb.innerHTML = `<p style="color:var(--mut)">${j.status==='erro'||j.status==='interrompido' ? esc(j.erro||'Erro') : 'A transcrição aparece aqui quando terminar.'}</p>`; return; }
+  if (!segs.length) { rb.innerHTML = '<p style="color:var(--mut)">Nenhuma fala detectada neste arquivo.</p>'; return; }
+  const rx = q ? new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi') : null;
+  const hl = t => rx ? esc(t).replace(rx, m=>`<mark>${m}</mark>`) : esc(t);
+  const tem = t => !q || t.toLowerCase().includes(q.toLowerCase());
+  if ($('#tempo').checked) {
+    rb.innerHTML = segs.filter(s => tem(s.text)).map(s => `<div class="seg"><time>${fmtT(s.start)}</time><div>${hl(s.text)}</div></div>`).join('') || '<p style="color:var(--mut)">Nada encontrado.</p>';
+  } else {
+    rb.innerHTML = paragrafos(segs).map(p => `<p>${hl(p)}</p>`).join('');
+  }
+  rb.querySelector('mark')?.scrollIntoView({block:'center'});
+}
+$('#q').oninput = texto; $('#tempo').onchange = texto;
+const fechar = () => { aberto=null; $('#reader').classList.remove('on'); $('#shade').classList.remove('on'); render(); };
+$('#close').onclick = fechar; $('#shade').onclick = fechar;
+document.addEventListener('keydown', e => { if (e.key==='Escape' && aberto) fechar(); });
+$('#copy').onclick = async () => {
+  const j = jobs.find(x => x.id === aberto); if (!j?.segs?.length) return;
+  const t = $('#tempo').checked ? j.segs.map(s=>`[${fmtT(s.start)}] ${s.text}`).join('\n') : paragrafos(j.segs).join('\n\n');
+  try { await navigator.clipboard.writeText(t); toast('Texto copiado'); } catch { toast('Não foi possível copiar'); }
+};
+$('#dl').onclick = async e => {
+  const b = e.target.closest('button'); const j = jobs.find(x => x.id === aberto); if (!b || !j) return;
+  if (b.dataset.f) { const comT = $('#tempo').checked && b.dataset.f==='txt'; baixarBlob(await gerar(j, b.dataset.f, comT), nomeSaida(j, b.dataset.f)); return; }
+  if (b.dataset.a==='apagar') {
+    if (j.id === atual) return toast('Espere este arquivo terminar');
+    if (!b.dataset.c) { b.dataset.c=1; b.textContent='Confirmar'; b.style.color='var(--err)'; return; }
+    jobs = jobs.filter(x => x !== j); sel.delete(j.id); DB.del(j.id); fechar(); toast('Apagado');
+  }
+};
+
+/* ---------- histórico ---------- */
+DB.all().then(lista => {
+  const ids = new Set(jobs.map(j=>j.id));
+  for (const j of lista) {
+    if (ids.has(j.id)) continue;
+    if (j.status !== 'concluído' && j.status !== 'erro') { j.status = 'interrompido'; j.erro = 'A aba foi fechada antes de terminar. Envie o arquivo de novo.'; }
+    jobs.push(j);
+  }
+  jobs.sort((a,b) => b.criado - a.criado); render();
+});
+render();
+}
+</script>
+</body>
+</html>
